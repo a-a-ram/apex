@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Apex Squad update 1",
+  "description": "The official landing page for the Apex Squad gaming community, featuring Discord links, tournament updates, streams, and our roster.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
