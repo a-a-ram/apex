@@ -15,7 +15,10 @@ PORT = int(os.environ.get("PORT", 8080))
 CHANNELS = {
     "ai-news": 1539371376782090280,
     "ai-tools": 1539371498115047504,
-    "daily-challenge": 1539371511239024783
+    "daily-challenge": 1539371511239024783,
+    "owner-vault": 1539598589192437760,
+    "bot-commands": 1539371630139281518,
+    "staff-resources": 1539371634568466543
 }
 
 intents = discord.Intents.default()
@@ -146,7 +149,7 @@ class PersistentRulesView(discord.ui.View):
         await interaction.response.send_message(
             f"🎉 **Congratulations {user.mention}!** You are now a **Verified Pilot** ✈️🤖.\n\n"
             f"All 60+ channels, prompt drops, and automation labs are now unlocked!\n"
-            f"Head to {welcome_mention} and <#1539371349301133455> to choose your AI roles.",
+            f"Head to {welcome_mention} and <#1539371349301133455> to choose your AI roles and view the Contribution Roadmap.",
             ephemeral=True
         )
 
@@ -156,11 +159,13 @@ class PersistentRulesView(discord.ui.View):
                 description=(
                     f"Hey **{user.display_name}**! ✈️🤖\n\n"
                     "I'm the creator behind **AI Pilot**. Thank you for verifying and joining our community of practical AI builders!\n\n"
-                    "### 🚀 3 Quick Tips to Get Started:\n"
-                    "1. **📇 Check Your Profile:** Type `t!profile` in <#1539598589192437760> to view your stats and rank.\n"
-                    "2. **🎁 Claim Daily Credits:** Type `t!daily` in <#1539598589192437760> to keep your streak alive.\n"
-                    "3. **⭐ Reward Builders:** When someone helps you solve a prompt or workflow error, thank them with `t!rep @user`!\n\n"
-                    "If you ever have ideas for upcoming YouTube tutorials, drop them in <#1539371413616730154>.\n\n"
+                    "### 🚀 How to Level Up & Earn Achievement Badges:\n"
+                    "• **🧠 AI Builder Role:** Active 7+ days + Level 5 + share 3 prompts/workflows in forums.\n"
+                    "• **⭐ Contributor Role:** Active 14+ days + Level 10 + 10+ peer reps (`t!rep`) + Starboard feature.\n"
+                    "• **🛡️ Moderator Invitation:** Active 20+ days across 30 days to receive a private staff invitation!\n\n"
+                    "### 🎮 Quick Start:\n"
+                    "1. Type `t!profile` in <#1539598589192437760> to check your profile.\n"
+                    "2. Type `t!daily` in <#1539598589192437760> to claim daily credits.\n\n"
                     "Let's let AI do the heavy lifting! 🚀"
                 ),
                 color=0x28D7FE
@@ -171,12 +176,58 @@ class PersistentRulesView(discord.ui.View):
             pass
 
 # =============================================================================
-# 4. DAILY 8:00 PM AUTOMATED DISPATCHER TASK
+# 4. MODERATOR APPLICATION MODAL & COMMAND
+# =============================================================================
+class ModApplicationModal(discord.ui.Modal, title="🛡️ Moderator Application | AI Pilot"):
+    experience = discord.ui.TextInput(
+        label="Why do you want to moderate AI Pilot?",
+        placeholder="Describe your background, Discord mod experience, or AI expertise...",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=500
+    )
+    availability = discord.ui.TextInput(
+        label="Timezone & Daily Availability",
+        placeholder="e.g. EST / GMT+5:30 • 2-3 hours daily",
+        required=True,
+        max_length=100
+    )
+    scenario = discord.ui.TextInput(
+        label="How would you handle a toxic member/spammer?",
+        placeholder="Step-by-step actions following server flight standards...",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=500
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        user = interaction.user
+        vault_ch = discord.utils.get(interaction.guild.channels, name="owner-vault")
+        if vault_ch:
+            embed_app = discord.Embed(
+                title="🛡️ NEW MODERATOR CANDIDATE APPLICATION",
+                color=0x8B5CF6,
+                timestamp=discord.utils.utcnow()
+            )
+            embed_app.set_thumbnail(url=user.display_avatar.url)
+            embed_app.add_field(name="👤 Applicant", value=f"{user.mention} (`{user.name}` | ID: `{user.id}`)", inline=False)
+            embed_app.add_field(name="🕒 Timezone & Availability", value=self.availability.value, inline=False)
+            embed_app.add_field(name="🎯 Motivation & Experience", value=self.experience.value, inline=False)
+            embed_app.add_field(name="🚨 Conflict Handling Scenario", value=self.scenario.value, inline=False)
+            embed_app.set_footer(text="Confidential Owner Review • Assigned Only by Owner")
+            await vault_ch.send(embed=embed_app)
+
+        await interaction.response.send_message(
+            "✅ **Application Submitted!** Your application has been sent directly to the **Server Owner** for confidential review. Thank you for your dedication!",
+            ephemeral=True
+        )
+
+# =============================================================================
+# 5. DAILY 8:00 PM AUTOMATED DISPATCHER
 # =============================================================================
 async def dispatch_daily_intel():
     today_str = datetime.now().strftime("%B %d, %Y")
 
-    # 1. #ai-news
     forum_news = bot.get_channel(CHANNELS["ai-news"])
     if forum_news and isinstance(forum_news, discord.ForumChannel):
         tag_match = next((t for t in forum_news.available_tags if t.name.lower() in ["important update", "openai", "anthropic", "google"]), None)
@@ -205,11 +256,9 @@ async def dispatch_daily_intel():
                 embed=embed_news,
                 applied_tags=applied
             )
-            print("Dispatched automated #ai-news")
-        except Exception as e:
-            print(f"Error dispatching ai-news: {e}")
+        except Exception:
+            pass
 
-    # 2. #ai-tools-directory
     forum_tools = bot.get_channel(CHANNELS["ai-tools"])
     if forum_tools and isinstance(forum_tools, discord.ForumChannel):
         tag_match = next((t for t in forum_tools.available_tags if t.name.lower() in ["featured", "productivity", "automation"]), None)
@@ -244,11 +293,9 @@ async def dispatch_daily_intel():
                 embed=embed_tools,
                 applied_tags=applied
             )
-            print("Dispatched automated #ai-tools-directory")
-        except Exception as e:
-            print(f"Error dispatching ai-tools: {e}")
+        except Exception:
+            pass
 
-    # 3. #daily-ai-challenge
     ch_challenge = bot.get_channel(CHANNELS["daily-challenge"])
     if ch_challenge and isinstance(ch_challenge, discord.TextChannel):
         embed_trivia = discord.Embed(
@@ -275,18 +322,15 @@ async def dispatch_daily_intel():
             msg = await ch_challenge.send(embed=embed_trivia)
             for emoji in ["🇦", "🇧", "🇨", "🇩"]:
                 await msg.add_reaction(emoji)
-            print("Dispatched automated #daily-ai-challenge")
-        except Exception as e:
-            print(f"Error dispatching daily-challenge: {e}")
+        except Exception:
+            pass
 
-# Runs everyday at 20:00 (8:00 PM UTC/Local)
-@tasks.loop(time=time(hour=14, minute=30)) # 14:30 UTC = 20:00 (8:00 PM IST)
+@tasks.loop(time=time(hour=14, minute=30))
 async def scheduled_daily_8pm():
-    print("Triggering scheduled 8:00 PM AI Daily Dispatcher...")
     await dispatch_daily_intel()
 
 # =============================================================================
-# 5. LIGHTWEIGHT HEALTH CHECK SERVER FOR RENDER 24/7 HOSTING
+# 6. LIGHTWEIGHT HEALTH CHECK SERVER FOR RENDER 24/7 HOSTING
 # =============================================================================
 async def handle_health(request):
     return web.Response(text="AI Pilot Discord Bot is Running 24/7 on Cloud!")
@@ -299,10 +343,9 @@ async def start_web_server():
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", PORT)
     await site.start()
-    print(f"Health server listening on port {PORT}")
 
 # =============================================================================
-# 6. BOT EVENTS
+# 7. BOT EVENTS
 # =============================================================================
 @bot.event
 async def on_ready():
@@ -311,7 +354,7 @@ async def on_ready():
     if not scheduled_daily_8pm.is_running():
         scheduled_daily_8pm.start()
     print(f"Logged in as {bot.user.name} ({bot.user.id})")
-    print("AI Pilot 24/7 Cloud Bot & 8 PM Daily Dispatcher is Live!")
+    print("AI Pilot 24/7 Cloud Bot & Mod Application Engine is Active!")
 
 async def main():
     asyncio.create_task(start_web_server())
