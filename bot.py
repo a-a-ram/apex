@@ -28,7 +28,16 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-TARGET_GOAL = 100
+# =============================================================================
+# PROGRESSIVE GOAL MILESTONES LADDER (100 -> 150 -> 200 -> 250 -> 500...)
+# =============================================================================
+MILESTONES = [100, 150, 200, 250, 500, 750, 1000, 1500, 2000, 2500, 5000, 10000]
+
+def get_current_goal(member_count):
+    for m in MILESTONES:
+        if member_count < m:
+            return m
+    return ((member_count // 500) + 1) * 500
 
 async def update_goal_counter(guild):
     try:
@@ -36,11 +45,11 @@ async def update_goal_counter(guild):
         if stats_cat:
             goal_ch = next((c for c in stats_cat.channels if "goal" in c.name.lower() or "🎯" in c.name), None)
             if goal_ch:
-                remaining = max(0, TARGET_GOAL - guild.member_count)
-                new_name = f"🎯 Goal: -{remaining} to {TARGET_GOAL}"
+                target_goal = get_current_goal(guild.member_count)
+                new_name = f"🎯 Goal: {target_goal} Pilots"
                 if goal_ch.name != new_name:
                     await goal_ch.edit(name=new_name)
-                    print(f"Updated dynamic goal counter: {new_name}")
+                    print(f"Updated progressive goal counter: {new_name}")
     except Exception as e:
         print(f"Goal counter update notice: {e}")
 
@@ -346,7 +355,7 @@ async def scheduled_daily_8pm():
     await dispatch_daily_intel()
 
 # =============================================================================
-# 6. MEMBER JOIN & LEAVE (DYNAMIC GOAL COUNTDOWN AUTO-UPDATER)
+# 6. MEMBER JOIN & LEAVE (PROGRESSIVE GOAL AUTO-UPDATER)
 # =============================================================================
 @bot.event
 async def on_member_join(member):
@@ -383,7 +392,7 @@ async def on_ready():
     if bot.guilds:
         await update_goal_counter(bot.guilds[0])
     print(f"Logged in as {bot.user.name} ({bot.user.id})")
-    print("AI Pilot 24/7 Cloud Bot & Live Goal Countdown Updater is Active!")
+    print("AI Pilot 24/7 Cloud Bot & Progressive Goal Auto-Updater is Live!")
 
 async def main():
     asyncio.create_task(start_web_server())
