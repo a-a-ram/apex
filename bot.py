@@ -2,14 +2,21 @@ import os
 import sys
 import asyncio
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from aiohttp import web
+from datetime import datetime, time
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 TOKEN = os.environ.get("DISCORD_TOKEN")
 PORT = int(os.environ.get("PORT", 8080))
+
+CHANNELS = {
+    "ai-news": 1539371376782090280,
+    "ai-tools": 1539371498115047504,
+    "daily-challenge": 1539371511239024783
+}
 
 intents = discord.Intents.default()
 intents.guilds = True
@@ -55,14 +62,12 @@ class PilotOnboardingModal(discord.ui.Modal, title="✈️ AI Pilot Verification
         rules_role = discord.utils.get(guild.roles, name="📑 Rules Reviewer")
         rules_channel = discord.utils.get(guild.channels, name="rules")
 
-        # 1. Grant Intermediate Role (Unlocks #rules)
         if rules_role:
             try:
                 await user.add_roles(rules_role)
             except Exception as e:
                 print(f"Role error: {e}")
 
-        # 2. Log Dossier to #owner-vault (Owner only)
         vault_ch = discord.utils.get(guild.channels, name="owner-vault")
         if vault_ch:
             embed_dossier = discord.Embed(
@@ -82,7 +87,6 @@ class PilotOnboardingModal(discord.ui.Modal, title="✈️ AI Pilot Verification
             except Exception as e:
                 print(f"Vault log error: {e}")
 
-        # 3. Ephemeral Success Confirmation -> Guide to Step 2 (#rules)
         rules_mention = rules_channel.mention if rules_channel else "#rules"
         await interaction.response.send_message(
             f"✅ **Step 1 Complete!** Details successfully recorded.\n\n"
@@ -128,7 +132,6 @@ class PersistentRulesView(discord.ui.View):
         new_arrival = discord.utils.get(guild.roles, name="🛰️ New Arrival")
         welcome_ch = discord.utils.get(guild.channels, name="welcome")
 
-        # Grant Full Verified Role & Cleanup Temporary Roles
         if verified_role:
             try:
                 await user.add_roles(verified_role)
@@ -139,7 +142,6 @@ class PersistentRulesView(discord.ui.View):
             except Exception as e:
                 print(f"Role upgrade error: {e}")
 
-        # Ephemeral confirmation
         welcome_mention = welcome_ch.mention if welcome_ch else "#welcome"
         await interaction.response.send_message(
             f"🎉 **Congratulations {user.mention}!** You are now a **Verified Pilot** ✈️🤖.\n\n"
@@ -148,7 +150,6 @@ class PersistentRulesView(discord.ui.View):
             ephemeral=True
         )
 
-        # 1-on-1 Creator Welcome DM
         try:
             embed_dm = discord.Embed(
                 title="✈️ Welcome to AI Pilot | Personal Welcome from the Creator",
@@ -170,7 +171,122 @@ class PersistentRulesView(discord.ui.View):
             pass
 
 # =============================================================================
-# 4. LIGHTWEIGHT HEALTH CHECK SERVER FOR RENDER 24/7 HOSTING
+# 4. DAILY 8:00 PM AUTOMATED DISPATCHER TASK
+# =============================================================================
+async def dispatch_daily_intel():
+    today_str = datetime.now().strftime("%B %d, %Y")
+
+    # 1. #ai-news
+    forum_news = bot.get_channel(CHANNELS["ai-news"])
+    if forum_news and isinstance(forum_news, discord.ForumChannel):
+        tag_match = next((t for t in forum_news.available_tags if t.name.lower() in ["important update", "openai", "anthropic", "google"]), None)
+        applied = [tag_match] if tag_match else []
+        embed_news = discord.Embed(
+            title=f"📰 Daily AI Intel & Model Breakthroughs — {today_str}",
+            description=(
+                "Here are today's top curated practical AI developments and high-signal updates for builders:\n\n"
+                "### 1️⃣ OpenAI & Next-Gen Reasoning Models\n"
+                "• **Chain-of-Thought Optimization:** Advancements in structured multi-step reasoning models for automated code debugging and complex logic.\n"
+                "• **Practical Takeaway:** Reduces prompt iteration cycles for complex data extraction and agent tasks.\n\n"
+                "### 2️⃣ Anthropic Claude Context & Tool Calling\n"
+                "• **Agentic Workflows:** Expanded computer use and automated browser execution capabilities.\n"
+                "• **Practical Takeaway:** Ideal for multi-step browser automation and end-to-end research pipelines.\n\n"
+                "### 3️⃣ Open-Source Visual & Generative AI\n"
+                "• **Flux & ComfyUI LoRA Pipelines:** Community breakthroughs in character consistency and 4K photorealism rendering.\n"
+                "• **Practical Takeaway:** Faster thumbnail generation and cinematic B-roll production."
+            ),
+            color=0x28D7FE,
+            timestamp=discord.utils.utcnow()
+        )
+        embed_news.set_footer(text="AI Pilot Daily Intel • Curated Practical AI")
+        try:
+            await forum_news.create_thread(
+                name=f"📰 [Daily Intel] AI Industry Digest — {today_str}",
+                embed=embed_news,
+                applied_tags=applied
+            )
+            print("Dispatched automated #ai-news")
+        except Exception as e:
+            print(f"Error dispatching ai-news: {e}")
+
+    # 2. #ai-tools-directory
+    forum_tools = bot.get_channel(CHANNELS["ai-tools"])
+    if forum_tools and isinstance(forum_tools, discord.ForumChannel):
+        tag_match = next((t for t in forum_tools.available_tags if t.name.lower() in ["featured", "productivity", "automation"]), None)
+        applied = [tag_match] if tag_match else []
+        embed_tools = discord.Embed(
+            title=f"🛠️ Featured AI Tools of the Day — {today_str}",
+            description=(
+                "Discover today's top curated tools to level up your workflow:\n\n"
+                "### ⚡ Tool 1: n8n (Next-Gen AI Agent Automation)\n"
+                "• **Category:** Workflow Automation & Autonomous AI Agents\n"
+                "• **Pricing:** Free Self-Hosted / Paid Cloud\n"
+                "• **Best For:** Connecting Claude, OpenAI, databases, and webhooks into visual multi-step systems.\n"
+                "• **Website:** [n8n.io](https://n8n.io)\n\n"
+                "### 🎨 Tool 2: Flux.1 Dev (State-of-the-Art Generative Visuals)\n"
+                "• **Category:** Image Generation & Prompt Fidelity\n"
+                "• **Pricing:** Open Weights / Cloud APIs\n"
+                "• **Best For:** Ultra-crisp typography, anatomy accuracy, and YouTube thumbnail assets.\n"
+                "• **Website:** [blackforestlabs.ai](https://blackforestlabs.ai)\n\n"
+                "### 🎙️ Tool 3: ElevenLabs (Voice Cloning & Audio Agents)\n"
+                "• **Category:** Text-to-Speech & Voice AI\n"
+                "• **Pricing:** Free Tier / Commercial Plans\n"
+                "• **Best For:** Studio-quality narration, multilingual dubbing, and conversational voice bots.\n"
+                "• **Website:** [elevenlabs.io](https://elevenlabs.io)"
+            ),
+            color=0x8B5CF6,
+            timestamp=discord.utils.utcnow()
+        )
+        embed_tools.set_footer(text="AI Pilot Tools Directory • Verified & Tested")
+        try:
+            await forum_tools.create_thread(
+                name=f"🛠️ [Daily Spotlight] 3 Essential AI Tools — {today_str}",
+                embed=embed_tools,
+                applied_tags=applied
+            )
+            print("Dispatched automated #ai-tools-directory")
+        except Exception as e:
+            print(f"Error dispatching ai-tools: {e}")
+
+    # 3. #daily-ai-challenge
+    ch_challenge = bot.get_channel(CHANNELS["daily-challenge"])
+    if ch_challenge and isinstance(ch_challenge, discord.TextChannel):
+        embed_trivia = discord.Embed(
+            title=f"🧠 Daily AI Challenge & Trivia — {today_str}",
+            description=(
+                "**Welcome to today's community AI challenge!**\n"
+                "Test your knowledge and vote with the reaction emojis below:\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "### ❓ Trivia Question:\n"
+                "**What does the 'Temperature' parameter primarily control in Large Language Models (LLMs)?**\n\n"
+                "🇦 **A)** The speed at which tokens are generated per second.\n"
+                "🇧 **B)** The randomness and creativity vs determinism of token selection.\n"
+                "🇨 **C)** The maximum context window memory size.\n"
+                "🇩 **D)** The floating-point precision of model weights.\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "👉 **React below with 🇦, 🇧, 🇨, or 🇩 to cast your vote!**\n"
+                "*The correct answer and explanation will be revealed in 24 hours!*"
+            ),
+            color=0xF1C40F,
+            timestamp=discord.utils.utcnow()
+        )
+        embed_trivia.set_footer(text="AI Pilot Daily Challenge • React to vote!")
+        try:
+            msg = await ch_challenge.send(embed=embed_trivia)
+            for emoji in ["🇦", "🇧", "🇨", "🇩"]:
+                await msg.add_reaction(emoji)
+            print("Dispatched automated #daily-ai-challenge")
+        except Exception as e:
+            print(f"Error dispatching daily-challenge: {e}")
+
+# Runs everyday at 20:00 (8:00 PM UTC/Local)
+@tasks.loop(time=time(hour=14, minute=30)) # 14:30 UTC = 20:00 (8:00 PM IST)
+async def scheduled_daily_8pm():
+    print("Triggering scheduled 8:00 PM AI Daily Dispatcher...")
+    await dispatch_daily_intel()
+
+# =============================================================================
+# 5. LIGHTWEIGHT HEALTH CHECK SERVER FOR RENDER 24/7 HOSTING
 # =============================================================================
 async def handle_health(request):
     return web.Response(text="AI Pilot Discord Bot is Running 24/7 on Cloud!")
@@ -186,71 +302,16 @@ async def start_web_server():
     print(f"Health server listening on port {PORT}")
 
 # =============================================================================
-# 5. BOT EVENTS
+# 6. BOT EVENTS
 # =============================================================================
 @bot.event
 async def on_ready():
     bot.add_view(PersistentVerifyView())
     bot.add_view(PersistentRulesView())
+    if not scheduled_daily_8pm.is_running():
+        scheduled_daily_8pm.start()
     print(f"Logged in as {bot.user.name} ({bot.user.id})")
-    print("AI Pilot 24/7 Cloud Bot is Ready! Registered Persistent Verify & Rules Views.")
-
-    # 1. Update #verify with Step 1 Embed & Button
-    ch_verify = discord.utils.get(bot.get_all_channels(), name="verify")
-    if ch_verify:
-        await ch_verify.purge(limit=10)
-        embed_v = discord.Embed(
-            title="🛡️ AI Pilot Gateway | Step 1: Verification & Onboarding",
-            description=(
-                "Welcome to **AI Pilot** ✈️🤖!\n\n"
-                "To ensure a safe, high-signal community and protect against spam, all newcomers begin here.\n\n"
-                "### 📋 What You'll Be Asked:\n"
-                "• **Full Name / Creator Handle** (Required)\n"
-                "• **Phone Number** (Required)\n"
-                "• **Email Address** (Optional — for templates & drops)\n"
-                "• **Date of Birth / AI Background** (Required)\n\n"
-                "🔒 *Your details are securely submitted to the confidential **Owner Vault** and remain 100% private from other members and staff.*\n\n"
-                "### 🛫 Step-by-Step Flow:\n"
-                "1️⃣ **Step 1:** Click the button below to submit your details.\n"
-                "2️⃣ **Step 2:** Agree to Flight Standards in **#rules**.\n"
-                "3️⃣ **Step 3:** Enter **#welcome** and unlock all 60+ channels!"
-            ),
-            color=0x22C55E
-        )
-        embed_v.set_footer(text="AI Pilot Security Core • Step 1 of 2")
-        await ch_verify.send(embed=embed_v, view=PersistentVerifyView())
-        print("Updated #verify with persistent Step 1 verification button.")
-
-    # 2. Update #rules with Step 2 Embed & Agreement Button
-    ch_rules = discord.utils.get(bot.get_all_channels(), name="rules")
-    if ch_rules:
-        await ch_rules.purge(limit=10)
-        embed_r = discord.Embed(
-            title="📜 AI Pilot Community Flight Standards | Step 2",
-            description=(
-                "Welcome to Step 2 of onboarding. Please review our community flight standards below.\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "**1️⃣ Mutual Respect & Professionalism**\n"
-                "Treat all members with respect. No harassment, discrimination, or hostile arguments.\n\n"
-                "**2️⃣ High-Signal Chat & Channel Hygiene**\n"
-                "Keep discussions in their respective channels. Avoid message spam and bot commands in discussion areas.\n\n"
-                "**3️⃣ No Unsolicited Self-Promotion / DM Advertising**\n"
-                "Cold pitching, DM ads, and unauthorized affiliate links result in an immediate ban.\n\n"
-                "**4️⃣ Responsible AI Usage & Content Integrity**\n"
-                "Strictly NO NSFW, deceptive deepfakes, or malicious exploits. Always test prompts before sharing.\n\n"
-                "**5️⃣ Privacy & API Keys Security**\n"
-                "Never share private API keys, client tokens, or passwords.\n\n"
-                "**6️⃣ Staff Authority & Support**\n"
-                "Follow staff guidance. For help, visit <#1539371357920297030>.\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "### 🔓 Ready to Unlock the Server?\n"
-                "Click **`✅ I Agree to Flight Standards`** below to complete onboarding and unlock all 60+ channels!"
-            ),
-            color=0x8B5CF6
-        )
-        embed_r.set_footer(text="AI Pilot Flight Standards • Step 2 of 2")
-        await ch_rules.send(embed=embed_r, view=PersistentRulesView())
-        print("Updated #rules with persistent Step 2 agreement button.")
+    print("AI Pilot 24/7 Cloud Bot & 8 PM Daily Dispatcher is Live!")
 
 async def main():
     asyncio.create_task(start_web_server())
