@@ -28,6 +28,22 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+TARGET_GOAL = 100
+
+async def update_goal_counter(guild):
+    try:
+        stats_cat = next((c for c in guild.categories if "server stats" in c.name.lower() or "stats" in c.name.lower()), None)
+        if stats_cat:
+            goal_ch = next((c for c in stats_cat.channels if "goal" in c.name.lower() or "🎯" in c.name), None)
+            if goal_ch:
+                remaining = max(0, TARGET_GOAL - guild.member_count)
+                new_name = f"🎯 Goal: -{remaining} to {TARGET_GOAL}"
+                if goal_ch.name != new_name:
+                    await goal_ch.edit(name=new_name)
+                    print(f"Updated dynamic goal counter: {new_name}")
+    except Exception as e:
+        print(f"Goal counter update notice: {e}")
+
 # =============================================================================
 # 1. STEP 1: 4-FIELD ONBOARDING MODAL
 # =============================================================================
@@ -176,7 +192,7 @@ class PersistentRulesView(discord.ui.View):
             pass
 
 # =============================================================================
-# 4. MODERATOR APPLICATION MODAL & COMMAND
+# 4. MODERATOR APPLICATION MODAL
 # =============================================================================
 class ModApplicationModal(discord.ui.Modal, title="🛡️ Moderator Application | AI Pilot"):
     experience = discord.ui.TextInput(
@@ -330,7 +346,18 @@ async def scheduled_daily_8pm():
     await dispatch_daily_intel()
 
 # =============================================================================
-# 6. LIGHTWEIGHT HEALTH CHECK SERVER FOR RENDER 24/7 HOSTING
+# 6. MEMBER JOIN & LEAVE (DYNAMIC GOAL COUNTDOWN AUTO-UPDATER)
+# =============================================================================
+@bot.event
+async def on_member_join(member):
+    await update_goal_counter(member.guild)
+
+@bot.event
+async def on_member_remove(member):
+    await update_goal_counter(member.guild)
+
+# =============================================================================
+# 7. LIGHTWEIGHT HEALTH CHECK SERVER FOR RENDER 24/7 HOSTING
 # =============================================================================
 async def handle_health(request):
     return web.Response(text="AI Pilot Discord Bot is Running 24/7 on Cloud!")
@@ -345,7 +372,7 @@ async def start_web_server():
     await site.start()
 
 # =============================================================================
-# 7. BOT EVENTS
+# 8. BOT EVENTS
 # =============================================================================
 @bot.event
 async def on_ready():
@@ -353,8 +380,10 @@ async def on_ready():
     bot.add_view(PersistentRulesView())
     if not scheduled_daily_8pm.is_running():
         scheduled_daily_8pm.start()
+    if bot.guilds:
+        await update_goal_counter(bot.guilds[0])
     print(f"Logged in as {bot.user.name} ({bot.user.id})")
-    print("AI Pilot 24/7 Cloud Bot & Mod Application Engine is Active!")
+    print("AI Pilot 24/7 Cloud Bot & Live Goal Countdown Updater is Active!")
 
 async def main():
     asyncio.create_task(start_web_server())
