@@ -13,9 +13,15 @@ TOKEN = os.environ.get("DISCORD_TOKEN")
 PORT = int(os.environ.get("PORT", 8080))
 
 CHANNELS = {
-    "ai-news": 1539371376782090280,
-    "ai-tools": 1539371498115047504,
+    "prompt-drops": 1539371427537363056,
+    "automation-lab": 1539371444230955069,
+    "templates-and-resources": 1539371458264957001,
+    "youtube-ai": 1539371469606223992,
+    "image-and-video-ai": 1539371478808666263,
+    "learning-paths": 1539371492314321019,
+    "ai-tools-directory": 1539371498115047504,
     "daily-challenge": 1539371511239024783,
+    "ai-news": 1539371376782090280,
     "owner-vault": 1539598589192437760,
     "bot-commands": 1539371630139281518,
     "staff-resources": 1539371634568466543
@@ -248,111 +254,122 @@ class ModApplicationModal(discord.ui.Modal, title="🛡️ Moderator Application
         )
 
 # =============================================================================
-# 5. DAILY 8:00 PM AUTOMATED DISPATCHER
+# 5. STAGGERED MULTI-TIME DAILY DISPATCHERS (5 Different Times Throughout Day)
 # =============================================================================
-async def dispatch_daily_intel():
-    today_str = datetime.now().strftime("%B %d, %Y")
 
-    forum_news = bot.get_channel(CHANNELS["ai-news"])
-    if forum_news and isinstance(forum_news, discord.ForumChannel):
-        tag_match = next((t for t in forum_news.available_tags if t.name.lower() in ["important update", "openai", "anthropic", "google"]), None)
-        applied = [tag_match] if tag_match else []
-        embed_news = discord.Embed(
-            title=f"📰 Daily AI Intel & Model Breakthroughs — {today_str}",
-            description=(
-                "Here are today's top curated practical AI developments and high-signal updates for builders:\n\n"
-                "### 1️⃣ OpenAI & Next-Gen Reasoning Models\n"
-                "• **Chain-of-Thought Optimization:** Advancements in structured multi-step reasoning models for automated code debugging and complex logic.\n"
-                "• **Practical Takeaway:** Reduces prompt iteration cycles for complex data extraction and agent tasks.\n\n"
-                "### 2️⃣ Anthropic Claude Context & Tool Calling\n"
-                "• **Agentic Workflows:** Expanded computer use and automated browser execution capabilities.\n"
-                "• **Practical Takeaway:** Ideal for multi-step browser automation and end-to-end research pipelines.\n\n"
-                "### 3️⃣ Open-Source Visual & Generative AI\n"
-                "• **Flux & ComfyUI LoRA Pipelines:** Community breakthroughs in character consistency and 4K photorealism rendering.\n"
-                "• **Practical Takeaway:** Faster thumbnail generation and cinematic B-roll production."
-            ),
+# [Slot 1: 09:00 AM IST / 03:30 UTC] — AI Pilot Updates & AI News
+@tasks.loop(time=time(hour=3, minute=30))
+async def morning_intel_dispatch():
+    today = datetime.now().strftime("%B %d, %Y")
+    ch = bot.get_channel(CHANNELS["ai-news"])
+    if ch and isinstance(ch, discord.ForumChannel):
+        embed = discord.Embed(
+            title=f"📰 [Morning Intel] AI Model Breakthroughs & News — {today}",
+            description="Autonomous morning intelligence report on LLM updates, agent tooling, and production workflows.",
             color=0x28D7FE,
             timestamp=discord.utils.utcnow()
         )
-        embed_news.set_footer(text="AI Pilot Daily Intel • Curated Practical AI")
+        tag = next((t for t in ch.available_tags if t.name.lower() in ["important update", "openai", "anthropic"]), None)
         try:
-            await forum_news.create_thread(
-                name=f"📰 [Daily Intel] AI Industry Digest — {today_str}",
-                embed=embed_news,
-                applied_tags=applied
-            )
+            await ch.create_thread(name=f"📰 [Intel] Daily AI News — {today}", embed=embed, applied_tags=[tag] if tag else [])
         except Exception:
             pass
 
-    forum_tools = bot.get_channel(CHANNELS["ai-tools"])
-    if forum_tools and isinstance(forum_tools, discord.ForumChannel):
-        tag_match = next((t for t in forum_tools.available_tags if t.name.lower() in ["featured", "productivity", "automation"]), None)
-        applied = [tag_match] if tag_match else []
-        embed_tools = discord.Embed(
-            title=f"🛠️ Featured AI Tools of the Day — {today_str}",
-            description=(
-                "Discover today's top curated tools to level up your workflow:\n\n"
-                "### ⚡ Tool 1: n8n (Next-Gen AI Agent Automation)\n"
-                "• **Category:** Workflow Automation & Autonomous AI Agents\n"
-                "• **Pricing:** Free Self-Hosted / Paid Cloud\n"
-                "• **Best For:** Connecting Claude, OpenAI, databases, and webhooks into visual multi-step systems.\n"
-                "• **Website:** [n8n.io](https://n8n.io)\n\n"
-                "### 🎨 Tool 2: Flux.1 Dev (State-of-the-Art Generative Visuals)\n"
-                "• **Category:** Image Generation & Prompt Fidelity\n"
-                "• **Pricing:** Open Weights / Cloud APIs\n"
-                "• **Best For:** Ultra-crisp typography, anatomy accuracy, and YouTube thumbnail assets.\n"
-                "• **Website:** [blackforestlabs.ai](https://blackforestlabs.ai)\n\n"
-                "### 🎙️ Tool 3: ElevenLabs (Voice Cloning & Audio Agents)\n"
-                "• **Category:** Text-to-Speech & Voice AI\n"
-                "• **Pricing:** Free Tier / Commercial Plans\n"
-                "• **Best For:** Studio-quality narration, multilingual dubbing, and conversational voice bots.\n"
-                "• **Website:** [elevenlabs.io](https://elevenlabs.io)"
-            ),
+# [Slot 2: 12:00 PM IST / 06:30 UTC] — Prompt Library Drop
+@tasks.loop(time=time(hour=6, minute=30))
+async def midday_prompt_dispatch():
+    today = datetime.now().strftime("%B %d, %Y")
+    ch = bot.get_channel(CHANNELS["prompt-drops"])
+    if ch and isinstance(ch, discord.ForumChannel):
+        embed = discord.Embed(
+            title=f"🧠 [Midday Drop] High-Signal Prompt Engineering Pattern — {today}",
+            description="Curated few-shot meta-prompt designed for deep reasoning, structured outputs, and zero hallucinations.",
+            color=0xF1C40F,
+            timestamp=discord.utils.utcnow()
+        )
+        tag = next((t for t in ch.available_tags if t.name.lower() in ["tested", "claude", "writing"]), None)
+        try:
+            await ch.create_thread(name=f"🧠 [Prompt Drop] Midday Pattern — {today}", embed=embed, applied_tags=[tag] if tag else [])
+        except Exception:
+            pass
+
+# [Slot 3: 03:00 PM IST / 09:30 UTC] — Automation Lab & Workflow Blueprint
+@tasks.loop(time=time(hour=9, minute=30))
+async def afternoon_automation_dispatch():
+    today = datetime.now().strftime("%B %d, %Y")
+    ch = bot.get_channel(CHANNELS["automation-lab"])
+    if ch and isinstance(ch, discord.ForumChannel):
+        embed = discord.Embed(
+            title=f"⚙️ [Afternoon Lab] Production Automation Blueprint — {today}",
+            description="Step-by-step architecture for connecting Python agents, n8n webhooks, and cloud APIs into autonomous pipelines.",
+            color=0x22C55E,
+            timestamp=discord.utils.utcnow()
+        )
+        tag = next((t for t in ch.available_tags if t.name.lower() in ["automation", "python", "api"]), None)
+        try:
+            await ch.create_thread(name=f"⚙️ [Blueprint] Lab Workflow — {today}", embed=embed, applied_tags=[tag] if tag else [])
+        except Exception:
+            pass
+
+# [Slot 4: 06:00 PM IST / 12:30 UTC] — Creator Studio & Visual AI
+@tasks.loop(time=time(hour=12, minute=30))
+async def evening_creator_dispatch():
+    today = datetime.now().strftime("%B %d, %Y")
+    ch = bot.get_channel(CHANNELS["youtube-ai"])
+    if ch and isinstance(ch, discord.ForumChannel):
+        embed = discord.Embed(
+            title=f"🎬 [Creator Lab] YouTube AI Retention & Script Strategy — {today}",
+            description="Creator playbook analyzing pacing benchmarks, high-converting thumbnail formulas, and title packaging.",
+            color=0x9B59B6,
+            timestamp=discord.utils.utcnow()
+        )
+        tag = next((t for t in ch.available_tags if t.name.lower() in ["scripts", "video ideas", "thumbnails"]), None)
+        try:
+            await ch.create_thread(name=f"🎬 [Strategy] Creator Drop — {today}", embed=embed, applied_tags=[tag] if tag else [])
+        except Exception:
+            pass
+
+# [Slot 5: 09:00 PM IST / 15:30 UTC] — Tools Spotlight & Daily AI Trivia Challenge
+@tasks.loop(time=time(hour=15, minute=30))
+async def night_tools_and_trivia_dispatch():
+    today = datetime.now().strftime("%B %d, %Y")
+    ch_tools = bot.get_channel(CHANNELS["ai-tools-directory"])
+    if ch_tools and isinstance(ch_tools, discord.ForumChannel):
+        embed_t = discord.Embed(
+            title=f"🛠️ [Evening Spotlight] 3 Essential AI Tools — {today}",
+            description="Verified tools directory update covering new dev productivity, voice synthesis, and image models.",
             color=0x8B5CF6,
             timestamp=discord.utils.utcnow()
         )
-        embed_tools.set_footer(text="AI Pilot Tools Directory • Verified & Tested")
+        tag = next((t for t in ch_tools.available_tags if t.name.lower() in ["featured", "productivity", "automation"]), None)
         try:
-            await forum_tools.create_thread(
-                name=f"🛠️ [Daily Spotlight] 3 Essential AI Tools — {today_str}",
-                embed=embed_tools,
-                applied_tags=applied
-            )
+            await ch_tools.create_thread(name=f"🛠️ [Spotlight] Tools Directory — {today}", embed=embed_t, applied_tags=[tag] if tag else [])
         except Exception:
             pass
 
-    ch_challenge = bot.get_channel(CHANNELS["daily-challenge"])
-    if ch_challenge and isinstance(ch_challenge, discord.TextChannel):
-        embed_trivia = discord.Embed(
-            title=f"🧠 Daily AI Challenge & Trivia — {today_str}",
+    ch_trivia = bot.get_channel(CHANNELS["daily-challenge"])
+    if ch_trivia and isinstance(ch_trivia, discord.TextChannel):
+        embed_q = discord.Embed(
+            title=f"🧠 Daily AI Challenge & Trivia — {today}",
             description=(
-                "**Welcome to today's community AI challenge!**\n"
-                "Test your knowledge and vote with the reaction emojis below:\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "**Test your knowledge and vote with the reactions below:**\n\n"
                 "### ❓ Trivia Question:\n"
-                "**What does the 'Temperature' parameter primarily control in Large Language Models (LLMs)?**\n\n"
-                "🇦 **A)** The speed at which tokens are generated per second.\n"
-                "🇧 **B)** The randomness and creativity vs determinism of token selection.\n"
-                "🇨 **C)** The maximum context window memory size.\n"
-                "🇩 **D)** The floating-point precision of model weights.\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "👉 **React below with 🇦, 🇧, 🇨, or 🇩 to cast your vote!**\n"
-                "*The correct answer and explanation will be revealed in 24 hours!*"
+                "**Which technique is most effective for preventing hallucinations when building an AI Q&A system over private documents?**\n\n"
+                "🇦 **A)** Fine-tuning the LLM on raw text.\n"
+                "🇧 **B)** Retrieval-Augmented Generation (RAG) with strict context grounding.\n"
+                "🇨 **C)** Increasing the temperature parameter to 1.5.\n"
+                "🇩 **D)** Increasing the maximum output tokens.\n"
             ),
             color=0xF1C40F,
             timestamp=discord.utils.utcnow()
         )
-        embed_trivia.set_footer(text="AI Pilot Daily Challenge • React to vote!")
+        embed_q.set_footer(text="AI Pilot Daily Challenge • React to vote!")
         try:
-            msg = await ch_challenge.send(embed=embed_trivia)
+            msg = await ch_trivia.send(embed=embed_q)
             for emoji in ["🇦", "🇧", "🇨", "🇩"]:
                 await msg.add_reaction(emoji)
         except Exception:
             pass
-
-@tasks.loop(time=time(hour=14, minute=30))
-async def scheduled_daily_8pm():
-    await dispatch_daily_intel()
 
 # =============================================================================
 # 6. MEMBER JOIN & LEAVE (PROGRESSIVE GOAL AUTO-UPDATER)
@@ -387,12 +404,23 @@ async def start_web_server():
 async def on_ready():
     bot.add_view(PersistentVerifyView())
     bot.add_view(PersistentRulesView())
-    if not scheduled_daily_8pm.is_running():
-        scheduled_daily_8pm.start()
+    
+    # Start all 5 staggered loops
+    loops = [
+        morning_intel_dispatch,
+        midday_prompt_dispatch,
+        afternoon_automation_dispatch,
+        evening_creator_dispatch,
+        night_tools_and_trivia_dispatch
+    ]
+    for lp in loops:
+        if not lp.is_running():
+            lp.start()
+
     if bot.guilds:
         await update_goal_counter(bot.guilds[0])
     print(f"Logged in as {bot.user.name} ({bot.user.id})")
-    print("AI Pilot 24/7 Cloud Bot & Progressive Goal Auto-Updater is Live!")
+    print("AI Pilot 24/7 Cloud Bot & 5 Staggered Daily Content Engines are Live!")
 
 async def main():
     asyncio.create_task(start_web_server())
